@@ -1,7 +1,7 @@
 import os
 import pyodbc
 from dotenv import load_dotenv
-from src.bcb_to_excel import busca_normas, DadosBusca
+from src.bcb import busca_normas, DadosBusca
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()

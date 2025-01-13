@@ -1,5 +1,5 @@
 import unittest
-from src.bcb_to_excel import busca_normas
+from src.bcb import busca_normas
 
 class TestBuscaNormas(unittest.TestCase):
     def test_busca_normas(self):
