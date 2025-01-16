@@ -1,7 +1,7 @@
 import os
 import pyodbc
 from dotenv import load_dotenv
-from src.bcb import busca_normas, DadosBusca
+from src.bcb import busca_normas, busca_norma, DadosBusca
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
@@ -28,19 +28,13 @@ TIPOS = [
     "Resolução Conjunta",
     "Resolução Coremec"
 ]
-TIPOS_ESPECIAIS = [
-    "Ato de Diretor",
-    "Ato Normativo Conjunto",
-    "Ato do Presidente",
-    "Comunicado",
-    "Comunicado Conjunto",
-    "Decisão Conjunta"
-]
 
-dados = DadosBusca(MAX_NUM, SO_NOVAS, TIPOS, TIPOS_ESPECIAIS)
+dados = DadosBusca(MAX_NUM, SO_NOVAS, TIPOS)
 
 conn = pyodbc.connect(STR_CONN)
 
 busca_normas(conn, dados)
+
+#busca_norma("", 1, conn)
 
 conn.close()

@@ -7,12 +7,20 @@ import pyodbc
 
 urllib3.disable_warnings()
 
+TIPOS_ESPECIAIS = [
+    "Ato de Diretor",
+    "Ato Normativo Conjunto",
+    "Ato do Presidente",
+    "Comunicado",
+    "Comunicado Conjunto",
+    "Decisão Conjunta"
+]
+
 class DadosBusca:
-    def __init__(self, max_num, so_novas, tipos, tipos_especiais):
+    def __init__(self, max_num, so_novas, tipos):
         self.max_num = max_num
         self.so_novas = so_novas
         self.tipos = tipos
-        self.tipos_especiais = tipos_especiais
 
 ############################################################################
 # get_url: Função para fazer a requisição GET e retornar os dados JSON
@@ -32,7 +40,6 @@ def busca_normas(conn, dados_busca):
     try:
         print("Iniciando busca")
         for tipo in dados_busca.tipos:
-            dados = []  # Lista para armazenar os dados de cada norma
             print(f"Buscando em: {tipo}")
             tipo_url = tipo.replace(" ", "%20")
             numeros = range(1, dados_busca.max_num + 1)
@@ -43,50 +50,56 @@ def busca_normas(conn, dados_busca):
               
             normaEncontrada = -1  
             for numero in numeros:
-                url = f"https://www.bcb.gov.br/api/conteudo/app/normativos/exibenormativo?p1={tipo}&p2={numero}"
-                if tipo in dados_busca.tipos_especiais:
-                    url = f"https://www.bcb.gov.br/api/conteudo/app/normativos/exibeoutrasnormas?p1={tipo}&p2={numero}"
-                retorno = get_url(url)    
-                        
-                if retorno and retorno.get("conteudo", []):          
-                    print(url.replace(" ", "%20"))
+
+                registro = busca_norma(tipo, numero, conn)
+                if registro:
                     normaEncontrada = 0
-                    for conteudo in retorno.get("conteudo", []):
-                        assunto = conteudo.get("Assunto")
-                        dataTexto = conteudo.get("DataTexto")
-                        link = f"https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo={tipo_url}&numero={numero}"
-                        registro = (conteudo.get("Titulo"),
-                                      conteudo.get("Tipo"),
-                                      conteudo.get("Documentos"),
-                                      conteudo.get("DOU"),
-                                      conteudo.get("Id"),
-                                      conteudo.get("Data"),
-                                      conteudo.get("DataTexto"),
-                                      conteudo.get("Numero"),
-                                      conteudo.get("VersaoNormativo"),
-                                      conteudo.get("Assunto"),
-                                      conteudo.get("Texto"),
-                                      conteudo.get("NormasVinculadas"),
-                                      conteudo.get("Referencias"),
-                                      conteudo.get("Atualizacoes"),
-                                      conteudo.get("Revogado"),
-                                      conteudo.get("Cancelado"),
-                                      conteudo.get("Voto"),
-                                      link,
-                                      json.dumps(conteudo))
-                        dados.append(registro)
-                        ToSQLServer(registro, conn)                        
                 elif normaEncontrada >= 0 or numeros[0] > 1:
                     normaEncontrada += 1
+
                 if normaEncontrada >= (5 if tipo != "Comunicado" else 12):
                     break
-            if dados:
-                #df = pd.DataFrame(dados)
-                #df.to_excel(f"{tipo}.xlsx", index=False)
-                print(f"Finalizada busca em: {tipo}")
+
     except requests.exceptions.RequestException as e:
         print(f"Erro ao buscar a norma {numero} do tipo {tipo}: {e}")
 
+############################################################################
+# BuscaNorma: Função para buscar uma norma específica
+def busca_norma(tipo, numero, conn):
+    url = f"https://www.bcb.gov.br/api/conteudo/app/normativos/exibenormativo?p1={tipo}&p2={numero}"
+    if tipo in TIPOS_ESPECIAIS:
+        url = f"https://www.bcb.gov.br/api/conteudo/app/normativos/exibeoutrasnormas?p1={tipo}&p2={numero}"
+    tipo_url = tipo.replace(" ", "%20")
+    link = f"https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo={tipo_url}&numero={numero}"
+
+    retorno = get_url(url)    
+            
+    if retorno and retorno.get("conteudo", []):          
+        print(link)
+        for conteudo in retorno.get("conteudo", []):
+            registro = (conteudo.get("Titulo"),
+                            conteudo.get("Tipo"),
+                            conteudo.get("Documentos"),
+                            conteudo.get("DOU"),
+                            conteudo.get("Id"),
+                            conteudo.get("Data"),
+                            conteudo.get("DataTexto"),
+                            conteudo.get("Numero"),
+                            conteudo.get("VersaoNormativo"),
+                            conteudo.get("Assunto"),
+                            conteudo.get("Texto"),
+                            conteudo.get("NormasVinculadas"),
+                            conteudo.get("Referencias"),
+                            conteudo.get("Atualizacoes"),
+                            conteudo.get("Revogado"),
+                            conteudo.get("Cancelado"),
+                            conteudo.get("Voto"),
+                            link,
+                            json.dumps(conteudo))
+            ToSQLServer(registro, conn)    
+        return registro 
+    else:   
+        return None
 
 ############################################################################
 # ToSQLServer: Função para inserir os dados no SQL Server
